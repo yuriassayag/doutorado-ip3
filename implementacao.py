@@ -41,20 +41,21 @@ list_aps = list(aps_positions.keys())
 
 #Constantes Log-Distance
 
-#N_list = [2.9, 3.1, 3.3 , 3.5, 3.7, 3.9, 4.1, 4.2, 4.5, 4.7, 4.9, 5.1, 5.3, 5.5, 5.7, 5.6, 6.1]
-#PL0_list = [40, 45, 50, 55, 60, 65]
-
-N   = 3.5
-PL0 = 60
-WALL_LOSS = 3
 d0  = 1
 STD_DEV = 1
 TXPOWER = 0
+N = 3.5
+PL0 = 60
+WALL_LOSS = 3
 
 #PSO Infomations
 dimension = 2
 population = 50
 generation = 10
+
+#population = 10
+#generation = 10
+
 fitness_criterion = 10e-8
 
 def euclidian_distance(P1, P2):
@@ -133,7 +134,8 @@ def update_velocity(particle, velocity, pbest, gbest, w_min=0.5, max=0.5, c=0.5)
     
     # Calculate new velocity
     for i in range(num_particle):
-        new_velocity[i] = round((w*velocity[i] + c1*r1*(pbest[i]-particle[i])+c2*r2*(gbest[i]-particle[i])),0)
+        #new_velocity[i] = round((w*velocity[i] + c1*r1*(pbest[i]-particle[i])+c2*r2*(gbest[i]-particle[i])),0)
+        new_velocity[i] = (w*velocity[i] + c1*r1*(pbest[i]-particle[i])+c2*r2*(gbest[i]-particle[i]))
     
     return new_velocity
 
@@ -181,7 +183,8 @@ def pso_2d(population, dimension, generation, fitness_criterion, real_position, 
                 particles[n] = update_position(particles[n], velocity[n])
 
         # Calculate the fitness value
-        pbest_fitness = [fitness_function([p[0],p[1]], row) for p in particles]
+
+        pbest_fitness = [fitness_function([round(p[0],1),round(p[1],1)], row) for p in particles]
         
         # Find the index of the best particle
         gbest_index = np.argmin(pbest_fitness)
@@ -207,19 +210,35 @@ df = df[(df["DEVICE"] == '2055') | (df["DEVICE"] == '121B') | (df["DEVICE"] == '
 #df_walls = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/walls_values.csv')
 df_walls = pd.read_csv('walls_values.csv')
 
-def sample_dfwall_low_dist(particle_position):
+with open('walls.json', 'r') as json_file:
+    points_walls = json.load(json_file)
+
+def sample_dfwall_low_dist2(particle_position):
     low = 100000
-    label = ''
+    index = 10000
 
     for i in df_walls.itertuples():
         point_sample = [i.X, i.Y]
         dist = euclidian_distance(particle_position, point_sample)
+        if dist < low:
+            low = dist
+            index = i.Index
+
+    return index
+
+def sample_dfwall_low_dist(particle_position):
+    low = 100000
+    index = 10000
+
+    for k, v in points_walls.items():
+        point_sample = [v[1], v[2]]
+        dist = euclidian_distance(point_sample, particle_position)
 
         if dist < low:
-            label = i.LABEL
             low = dist
+            index = v[0]
 
-    return label
+    return index
 
 def attenuation():
     u = 0
@@ -236,14 +255,13 @@ def attenuation():
 def particle_RSSI(particle_position):
     particle_sample = {}
 
-    #label = sample_dfwall_low_dist(particle_position)
-    
+    label_index = sample_dfwall_low_dist(particle_position)
+
     for i in range(len(list_aps)):
         wap_position = aps_positions[list_aps[i]]
         dist = euclidian_distance(wap_position, particle_position)
         
-        #walls_qtd = df_walls[df_walls["LABEL"] == label][list_aps[i]].iloc[0]
-        #print(label, list_aps[i], walls_qtd)
+        #walls_qtd = df_walls.at[label_index, list_aps[i]]
         walls_qtd=0
         
         if dist < 0.1:
@@ -254,13 +272,13 @@ def particle_RSSI(particle_position):
             pathLoss = distLoss + wallLoss
             
             #RSSI = round((TXPOWER - ( pathLoss)) + attenuation() ,0)
-            RSSI = round((TXPOWER - ( pathLoss)) ,0)
+            RSSI = round((TXPOWER - ( pathLoss)),0)
         
         if RSSI < -95: RSSI = -105
+
         particle_sample[list_aps[i]] = RSSI
 
     return particle_sample
-
 
 #RMSD entre os RSSI da particula e do sample
 def fitness_function(particle_position, row):
@@ -268,15 +286,10 @@ def fitness_function(particle_position, row):
     error = 0
     
     for i in range(len(list_aps)):
-        #print(row, list_aps[i], error)
-        rssi_particula = particula[list_aps[i]]
-        rssi_ap        = getattr(row, list_aps[i])
-        
-        erro_atual = math.pow((rssi_particula - rssi_ap) , 2)
-        erro_atual = math.sqrt(erro_atual)
-        error += erro_atual
-        #print(row, list_aps[i], 'error:', math.pow((particula[list_aps[i]] - getattr(row, list_aps[i])) , 2), error)
+        error += math.pow((particula[list_aps[i]] - getattr(row, list_aps[i])) , 2)
     
+    error = error
+
     return round(error,2)
 
 def error_by_room(room):
@@ -315,7 +328,8 @@ for room in tqdm(list_rooms):
 
 lista_api_paralela = [result.get(timeout=120) for result in tqdm(subprocessos)]
 print('\n\nMEDIA:', np.mean(lista_api_paralela))
+#print('\n\nMEDIA:', np.mean(subprocessos))
 
 fim_processo = time()
 processamento_paralelo = fim_processo - inicio_processo
-#print('Processamento paralelo:', round( (processamento_paralelo), 1 ), 'segundos')
+print('Processamento paralelo:', round( (processamento_paralelo), 1 ), 'segundos')
