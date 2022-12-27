@@ -1,0 +1,175 @@
+{
+   "rooms":{
+      "H62":{
+         "id":"H62",
+         "type":"hall",
+         "name":"",
+         "width":1614.03,
+         "height":221.26,
+         "x":2170.49,
+         "y":717
+      },
+      "H63":{
+         "id":"H63",
+         "type":"hall",
+         "name":"",
+         "width":585.59,
+         "height":1590.19,
+         "x":773.48,
+         "y":926.35
+      },
+      "H61":{
+         "id":"H61",
+         "type":"hall",
+         "name":"",
+         "width":1543.49,
+         "height":250.41,
+         "x":627,
+         "y":687.85
+      },
+      "R41":{
+         "id":"R41",
+         "type":"room",
+         "name":"Sala 10",
+         "width":575.31,
+         "height":876.35,
+         "x":50,
+         "y":50
+      },
+      "R16":{
+         "id":"R16",
+         "type":"room",
+         "name":"Lab. Informática",
+         "width":1005.48,
+         "height":640.17,
+         "x":50,
+         "y":926.35
+      },
+      "R57":{
+         "id":"R57",
+         "type":"room",
+         "name":"Sala Profs",
+         "width":329.29,
+         "height":711.29,
+         "x":625.31,
+         "y":50
+      },
+      "R40":{
+         "id":"R40",
+         "type":"room",
+         "name":"Sala 11",
+         "width":589.25,
+         "height":669.24,
+         "x":1568.91,
+         "y":50
+      },
+      "R53":{
+         "id":"R53",
+         "type":"room",
+         "name":"Sala 13",
+         "width":800.54,
+         "height":669.24,
+         "x":2158.17,
+         "y":50
+      },
+      "R39":{
+         "id":"R39",
+         "type":"room",
+         "name":"Sala 16",
+         "width":667.81,
+         "height":669.24,
+         "x":2958.7,
+         "y":50
+      },
+      "R47":{
+         "id":"R47",
+         "type":"room",
+         "name":"Sala 17",
+         "width":806.57,
+         "height":669.24,
+         "x":3626.51,
+         "y":50
+      },
+      "R46":{
+         "id":"R46",
+         "type":"room",
+         "name":"Sala 12",
+         "width":799.58,
+         "height":633.32,
+         "x":1360.21,
+         "y":935.02
+      },
+      "R43":{
+         "id":"R43",
+         "type":"room",
+         "name":"Sala 14",
+         "width":800.39,
+         "height":633.32,
+         "x":2158.65,
+         "y":935.02
+      },
+      "R45":{
+         "id":"R45",
+         "type":"room",
+         "name":"Sala 15",
+         "width":802.37,
+         "height":633.32,
+         "x":2959.04,
+         "y":935.02
+      },
+      "R51":{
+         "id":"R51",
+         "type":"room",
+         "name":"Sala 18",
+         "width":671.66,
+         "height":849.1,
+         "x":3761.41,
+         "y":719.24
+      },
+      "R33":{
+         "id":"R33",
+         "type":"room",
+         "name":"B. F.",
+         "width":306.81,
+         "height":637.13,
+         "x":954.6,
+         "y":50
+      },
+      "R44":{
+         "id":"R44",
+         "type":"room",
+         "name":"Sala 9",
+         "width":722.92,
+         "height":608.16,
+         "x":50,
+         "y":1566.52
+      },
+      "R42":{
+         "id":"R42",
+         "type":"room",
+         "name":"Sala 8",
+         "width":722.92,
+         "height":853.9,
+         "x":50,
+         "y":2174.68
+      },
+      "R32":{
+         "id":"R32",
+         "type":"room",
+         "name":"B. M.",
+         "width":307.5,
+         "height":637.13,
+         "x":1261.41,
+         "y":50
+      },
+      "R49":{
+         "id":"R49",
+         "type":"room",
+         "name":"Sala 7",
+         "width":867.64,
+         "height":513.99,
+         "x":772.92,
+         "y":2514.58
+      }
+   }
+}
