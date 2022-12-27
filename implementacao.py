@@ -3,19 +3,17 @@ import random
 import json
 import numpy as np
 import pandas as pd
+import multiprocessing
 import matplotlib.patheffects as PathEffects
 from matplotlib         import pyplot as plt
-#from pyswarm            import pso
 from matplotlib.patches import Circle
-
 from time import sleep, time
 from multiprocessing.pool import ThreadPool, Pool
-import multiprocessing
 from tqdm import tqdm
-
+#from pyswarm            import pso
 #%matplotlib inline
 
-# Map Informations
+################################# INFORMAÇOES DO MAPA #############################
 x_under_lim = 1
 x_upper_lim = 44
 y_under_lim = 1
@@ -39,25 +37,22 @@ aps_positions = {'WAP11': [1.5 , 11.4],
 
 list_aps = list(aps_positions.keys())
 
-#Constantes Log-Distance
-
+################################# LOG-DISTANCE PARAM #############################
 d0  = 1
 STD_DEV = 1
 TXPOWER = 0
-N = 3.5
-PL0 = 60
-WALL_LOSS = 3
 
-#PSO Infomations
+################################# PARTICLE SWARM OPTIMAZATION PARAM ##############
 dimension = 2
-population = 50
-generation = 10
-
-#population = 10
-#generation = 10
-
 fitness_criterion = 10e-8
+population = 50
+generation = 12
 
+#population = 100
+#generation = 15
+best_particle = {}
+
+################################# FUNÇOES GLOBAIS ################################
 def euclidian_distance(P1, P2):
     X1, Y1 = P1[0], P1[1]
     X2, Y2 = P2[0], P2[1]
@@ -145,8 +140,8 @@ def update_position(particle, velocity):
     
     return new_particle
 
+##################### PARTICLE SWARM OPTIMAZATION ALGORITHM ######################
 def pso_2d(population, dimension, generation, fitness_criterion, real_position, row):
-    
     seed = time()
     random.seed(seed)
     #print('seed:', seed)
@@ -156,12 +151,27 @@ def pso_2d(population, dimension, generation, fitness_criterion, real_position, 
     
     # Particle's best position
     pbest_position = particles
+    #print('\nParticulas:', pbest_position)
+    
+    pbest_fitness = []
+    particles_json = []
+    
+    for p in particles:
+        ff = fitness_function([p[0],p[1]], row, 0)
+        particles_json.append(ff[0])
+        pbest_fitness.append(ff[1])
     
     # Fitness
-    pbest_fitness = [fitness_function([p[0],p[1]], row) for p in particles]
+    #pbest_fitness = [fitness_function([p[0],p[1]], row, 0) for p in particles]
+    #print(pbest_fitness)
     
     # Index of the best particle
     gbest_index = np.argmin(pbest_fitness)
+    #print('melhor particula:', pbest_position[gbest_index])
+    
+    global best_particle
+    best_particle = particles_json[gbest_index]
+    #print(best_particle)
     
     # Global best particle position
     gbest_position = pbest_position[gbest_index]
@@ -181,10 +191,19 @@ def pso_2d(population, dimension, generation, fitness_criterion, real_position, 
                 
                 # Move the particles to new position
                 particles[n] = update_position(particles[n], velocity[n])
+        
+        #print('----------- round', t+1)
 
         # Calculate the fitness value
-
-        pbest_fitness = [fitness_function([round(p[0],1),round(p[1],1)], row) for p in particles]
+        #pbest_fitness = [fitness_function([round(p[0],1),round(p[1],1)], row, 1) for p in particles]
+        
+        pbest_fitness = []
+        particles_json = []
+        
+        for p in particles:
+            ff = fitness_function([p[0],p[1]], row, 1)
+            particles_json.append(ff[0])
+            pbest_fitness.append(ff[1])
         
         # Find the index of the best particle
         gbest_index = np.argmin(pbest_fitness)
@@ -192,40 +211,19 @@ def pso_2d(population, dimension, generation, fitness_criterion, real_position, 
         # Update the position of the best particle
         gbest_position = pbest_position[gbest_index]
         
-        ##print('Round', t+1, ', Best Position:', gbest_position, ', Cost:', pbest_fitness[gbest_index])
-        ##generateMap(particles, pbest_fitness, real_position, t)
-
-    # Print the results
-    #print('Global Best Position: ', gbest_position)
-    #print('Best Fitness Value: ', min(pbest_fitness))
-    #print('Average Particle Best Fitness Value: ', np.average(pbest_fitness))
-    #print('Number of Generation: ', t)
+        #print('melhor particula:', pbest_position[gbest_index])
+        
+        #best_particle = particle_RSSI(pbest_position[gbest_index])
+        
+        generateMap(particles, pbest_fitness, real_position, t)
     
     return gbest_position
 
-df = pd.read_csv('db_yuri_training5_semsala42_1-todos-aps-maxValue.csv')
-#df = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/db_yuri_training5_semsala42_1-todos-aps-maxValue.csv')
-df = df[(df["DEVICE"] == '2055') | (df["DEVICE"] == '121B') | (df["DEVICE"] == '20B5')].reset_index(drop=True)
 
-#df_walls = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/walls_values.csv')
-df_walls = pd.read_csv('walls_values.csv')
+####################### FUNÇOES PARA CADA SAMPLE DA DATABASE ###################
 
-with open('walls.json', 'r') as json_file:
-    points_walls = json.load(json_file)
-
-def sample_dfwall_low_dist2(particle_position):
-    low = 100000
-    index = 10000
-
-    for i in df_walls.itertuples():
-        point_sample = [i.X, i.Y]
-        dist = euclidian_distance(particle_position, point_sample)
-        if dist < low:
-            low = dist
-            index = i.Index
-
-    return index
-
+# Busca qual o label do json de labels que e mais proximo da particula atual para contar a quantidade de paredes.
+# Recebe a particula como parametro e retorna o index da label mais proxima no dataframe.
 def sample_dfwall_low_dist(particle_position):
     low = 100000
     index = 10000
@@ -240,6 +238,7 @@ def sample_dfwall_low_dist(particle_position):
 
     return index
 
+# Atenuacao do RSSI como uma variavel normal.
 def attenuation():
     u = 0
     v = 0
@@ -251,8 +250,8 @@ def attenuation():
     return normal * STD_DEV
 
 # Cada particula tem uma posição [x,y] e pegamos essa posição para obter as distâncias pros respectivos waps
-# e através da distância obter o RSSI entre eles. No final será retornado um dicionário com o RSSI para todos os WAPS.
-def particle_RSSI(particle_position):
+# E através da distância obter o RSSI entre eles. No final será retornado um dicionário com o RSSI para todos os WAPS.
+def particle_RSSI(particle_position, tipo):
     particle_sample = {}
 
     label_index = sample_dfwall_low_dist(particle_position)
@@ -261,9 +260,20 @@ def particle_RSSI(particle_position):
         wap_position = aps_positions[list_aps[i]]
         dist = euclidian_distance(wap_position, particle_position)
         
-        #walls_qtd = df_walls.at[label_index, list_aps[i]]
-        walls_qtd=0
-        
+        if tipo == 0:
+            N   = round(random.uniform(3.5, 4.5),1)
+            PL0 = round(random.uniform(50, 65),0)
+            WALL_LOSS = round(random.uniform(2, 6),0)
+            #print('tipo0', list_aps[i], PL0, N, WALL_LOSS)
+        else:
+            PL0 = best_particle[list_aps[i]][1]
+            N   = best_particle[list_aps[i]][2]
+            WALL_LOSS = best_particle[list_aps[i]][3]
+            #print('tipo 1', PL0, N, WALL_LOSS)
+
+        #walls_qtd=0
+        walls_qtd = df_walls.at[label_index, list_aps[i]]
+
         if dist < 0.1:
             RSSI = -PL0
         else:
@@ -275,44 +285,58 @@ def particle_RSSI(particle_position):
             RSSI = round((TXPOWER - ( pathLoss)),0)
         
         if RSSI < -95: RSSI = -105
-
-        particle_sample[list_aps[i]] = RSSI
-
+        
+        particle_sample[list_aps[i]] = [RSSI, PL0, N, WALL_LOSS]
+        #particle_sample[list_aps[i]] = RSSI
+    
     return particle_sample
 
-#RMSD entre os RSSI da particula e do sample
-def fitness_function(particle_position, row):
-    particula = particle_RSSI(particle_position)
+# RMSD entre os RSSI da particula e do sample
+def fitness_function(particle_position, row, tipo):
+    particula = particle_RSSI(particle_position, tipo)
     error = 0
     
     for i in range(len(list_aps)):
-        error += math.pow((particula[list_aps[i]] - getattr(row, list_aps[i])) , 2)
+        #print(list_aps[i], math.sqrt(math.pow((particula[list_aps[i]][0] - getattr(row, list_aps[i])) , 2)))
+        error += math.sqrt(math.pow((particula[list_aps[i]][0] - getattr(row, list_aps[i])) , 2))
     
     error = error
+    #print(particle_position, error, '\n')
+    return (particula, round(error,2))
 
-    return round(error,2)
+################################# ARQUIVOS #############################
+df = pd.read_csv('db_yuri_training5_semsala42_1-todos-aps-maxValue.csv')
+#df = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/db_yuri_training5_semsala42_1-todos-aps-maxValue.csv')
+df = df[(df["DEVICE"] == '2055') | (df["DEVICE"] == '121B') | (df["DEVICE"] == '20B5')].reset_index(drop=True)
+df = df.sample(n=1, random_state=1)
+    
+#df_walls = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/walls_values.csv')
+df_walls = pd.read_csv('walls_values.csv')
+
+with open('walls.json', 'r') as json_file:
+    points_walls = json.load(json_file)
+#########################################################################
 
 def error_by_room(room):
     error_by_room = []
     room_df     = df[df['ROOM_ID'] == room]
     room_points = room_df['LABEL'].unique()
-    
+
     for point in room_points:
         point_df = room_df[room_df['LABEL'] == point]
-        
+
         for row in point_df.itertuples():
             real_position = [row.X, row.Y]
 
             estimated_position = pso_2d(population, dimension, generation, fitness_criterion, real_position, row)
             estimated_error = euclidian_distance(real_position, estimated_position)
-            
+
             error_by_room.append(estimated_error)
-            
+
     return_error = np.mean(error_by_room)
-    print('Sala:', room, 'Error:', return_error)
+    print('Sala:', room, 'Error:', round(return_error,3), 'm')
     return return_error
 
-#-----------------------------------------------------------------------------------------
 list_rooms = list(df['ROOM_ID'].unique())
 
 inicio_processo = time()
@@ -326,7 +350,7 @@ for room in tqdm(list_rooms):
     resultado_paralelo = pool.apply_async(error_by_room, (room, ))
     subprocessos.append(resultado_paralelo)
 
-lista_api_paralela = [result.get(timeout=120) for result in tqdm(subprocessos)]
+lista_api_paralela = [result.get(timeout=300) for result in tqdm(subprocessos)]
 print('\n\nMEDIA:', np.mean(lista_api_paralela))
 #print('\n\nMEDIA:', np.mean(subprocessos))
 
