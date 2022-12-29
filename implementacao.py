@@ -43,12 +43,12 @@ STD_DEV = 1
 TXPOWER = 0
 
 ################################# PARTICLE SWARM OPTIMAZATION PARAM ##############
-dimension = 2
+dimension = 5
 fitness_criterion = 10e-8
 #population = 50
 #generation = 15
 
-population = 50
+population = 100
 generation = 15
 best_particle = {}
 
@@ -56,7 +56,7 @@ best_particle = {}
 def euclidian_distance(P1, P2):
     X1, Y1 = P1[0], P1[1]
     X2, Y2 = P2[0], P2[1]
-    return round(math.sqrt((X2-X1)**2 + (Y2-Y1)**2),1)
+    return round(math.sqrt((X2-X1)**2 + (Y2-Y1)**2),2)
 
 def toPixels(x, y):
     return (x*100, y*100)
@@ -87,7 +87,10 @@ def generateMap(particles, costs, realPosition, currentRound):
         pos = particles[i][0]
         posPixels = toPixels(pos[0], pos[1])
         label     = str(pos[0]) + str(pos[1])
-        
+        p_pl0 = particles[i][1]
+        p_n   = particles[i][2]
+        p_wall= particles[i][3]
+
         cost = costs[i]
         
         if cost < low_cost:
@@ -95,7 +98,7 @@ def generateMap(particles, costs, realPosition, currentRound):
             low_position = pos
         
         if label not in groups:
-            groups[label] = [i, posPixels[0], posPixels[1], cost]
+            groups[label] = [i, posPixels[0], posPixels[1], cost, p_pl0, p_n]
         else:
                 groups[label][0] += 1
             
@@ -103,7 +106,7 @@ def generateMap(particles, costs, realPosition, currentRound):
         plt.gca().add_patch(circ)
     
     for group in groups.values():
-        plt.annotate("P" + str(group[0]) + ', Cost:' + str(round(group[3], 1)), xy=(group[1]+5, group[2]-5), size=2.7, va="center", ha="left", xytext=(group[1] + 50, group[2] - 80), zorder=8,
+        plt.annotate("P" + str(group[0]) + ', Cost:' + str(round(group[3], 1)) + '\nPL0:' + str(round(group[4], 1)) + ', N:' +str(round(group[5], 1)) , xy=(group[1]+5, group[2]-5), size=2.7, va="center", ha="left", xytext=(group[1] + 50, group[2] - 80), zorder=8,
               bbox=dict(boxstyle="square", facecolor="#ffffffcc", edgecolor="#aaaaaa88", linewidth=0.4),
               arrowprops=dict(arrowstyle="-", antialiased=True, color="#444444", connectionstyle="arc3,rad=-0.2", linewidth=0.15))
         
@@ -116,28 +119,57 @@ def generateMap(particles, costs, realPosition, currentRound):
     #plt.title("PL0, N, WALL_LOSS caminhando em difereçao ao melhor da rodada anterior", fontsize = 10)
     plt.savefig(imgFilename, dpi=300, bbox_inches="tight", pad_inches=0)
     
-def update_velocity(particle, velocity, pbest, gbest, w_min=0.5, max=0.5, c=0.5):
+def update_velocity(particle, velocity, pbest, gbest, w_min=0.5, w_max=0.5, c=0.5):
     # Initialise new velocity array
-    num_particle = len(particle)
-    new_velocity = np.array([0.0 for i in range(num_particle)])
-    
+    num_pos = len(particle[0])
+    num_params = len(particle)
+
+    new_velocity = np.array([0.0 for i in range(len(particle)+1)])
+
     # Randomly generate r1, r2 and inertia weight from normal distribution
-    r1 = random.uniform(0,max)
-    r2 = random.uniform(0,max)
-    w = random.uniform(w_min,max)
+    r1 = random.uniform(0,w_max)
+    r2 = random.uniform(0,w_max)
+    w = random.uniform(w_min,w_max)
     c1 = c
     c2 = c
-    
+
     # Calculate new velocity
-    for i in range(num_particle):
-        #new_velocity[i] = round((w*velocity[i] + c1*r1*(pbest[i]-particle[i])+c2*r2*(gbest[i]-particle[i])),0)
-        new_velocity[i] = (w*velocity[i] + c1*r1*(pbest[i]-particle[i])+c2*r2*(gbest[i]-particle[i]))
-    
+    for i in range(num_pos):
+        new_velocity[i] = (w*velocity[i] + c1*r1*(pbest[0][i]-particle[0][i])+c2*r2*(gbest[0][i]-particle[0][i]))
+
+    # Calculate new velocity
+    #for i in range(1, num_params):
+    #    new_velocity[i] = (w*velocity[i+1] + c1*r1*(pbest[i]-particle[i])+c2*r2*(gbest[i]-particle[i]))
+    if particle[1] < gbest[1]:
+        new_velocity[2] = 2
+    elif particle[1] > gbest[1]:
+        new_velocity[2] = -2
+    else:
+        new_velocity[2] = 0
+
+    if particle[2] < gbest[2]:
+        new_velocity[3] = 0.3
+    elif particle[2] > gbest[2]:
+        new_velocity[3] = -0.3
+    else:
+        new_velocity[3] = 0
+    #print(new_velocity)
+
+    if particle[3] < gbest[3]:
+        new_velocity[4] = 1
+    elif particle[3] > gbest[3]:
+        new_velocity[4] = -1
+    else:
+        new_velocity[4] = 0
+
     return new_velocity
 
 def update_position(particle, velocity):
     # Move particles by adding velocity
-    new_particle = particle + velocity
+    new_particle = [  [particle[0][0] + velocity[0], particle[0][1] + velocity[1]  ],
+                       particle[1] + velocity[2], particle[2] + velocity[3], particle[3] + velocity[4]]
+    #new_particle = particle + velocity
+    #print('p', particle, 'v' ,velocity, 'new', new_particle, '\n')
     
     return new_particle
 
@@ -145,7 +177,7 @@ def update_position(particle, velocity):
 def pso_2d(population, dimension, generation, fitness_criterion, real_position, row):
     seed = time()
     #seed = 1672159026.9478798
-    #print('seed:', seed)
+    print('seed:', seed)
     random.seed(seed)
     
     # Population (N, PL0, WALL_LOSS random between respective interval)
@@ -155,7 +187,6 @@ def pso_2d(population, dimension, generation, fitness_criterion, real_position, 
     #print(particles)
     # Particle's best position
     pbest_position = particles
-    #print('\nParticulas:', pbest_position)
     
     # Fitness
     pbest_fitness = [fitness_function(particles[p], row) for p in particles]
@@ -171,16 +202,19 @@ def pso_2d(population, dimension, generation, fitness_criterion, real_position, 
 
     # Loop for the number of generation
     for t in range(generation):
+        #print('------------------ round',t)
         # Stop if the average fitness value reached a predefined success criterion
         if np.average(pbest_fitness) <= fitness_criterion:
             break
         else:
             for n in range(population):
                 # Update the velocity of each particle
-                velocity[n] = update_velocity(particles[n][0], velocity[n], pbest_position[n][0], gbest_position[0])
-                
+
+                #print('P=', particles[n], '| V=', velocity[n], '| PB=', pbest_position[n], '| GB=',gbest_position)
+                velocity[n] = update_velocity(particles[n], velocity[n], pbest_position[n], gbest_position)
+                #print('Velocity[n]:', velocity[n])
                 # Move the particles to new position
-                particles[n][0] = update_position(particles[n][0], velocity[n])
+                particles[n] = update_position(particles[n], velocity[n])
         
         #print('----------- round', t+1)
 
@@ -195,7 +229,7 @@ def pso_2d(population, dimension, generation, fitness_criterion, real_position, 
 
         #best_particle = particle_RSSI(pbest_position[gbest_index])
         
-        #generateMap(particles, pbest_fitness, real_position, t)
+        generateMap(particles, pbest_fitness, real_position, t)
     
     return gbest_position
 
@@ -236,20 +270,13 @@ def particle_RSSI(particle_position):
 
     #label_index = sample_dfwall_low_dist(particle_position[0])
     
-    #PL0 = particle_position[1]
-    #N   = particle_position[2]
-    #WALL_LOSS = particle_position[3]
-
-    N   = round(random.uniform(3.5, 5),1)
-    PL0 = round(random.uniform(50, 60),0)
-    WALL_LOSS = round(random.uniform(1, 5),0)
+    PL0 = particle_position[1]
+    N   = particle_position[2]
+    WALL_LOSS = particle_position[3]
 
     for i in range(len(list_aps)):
         wap_position = aps_positions[list_aps[i]]
         dist = euclidian_distance(wap_position, particle_position[0])
-
-
-
 
         walls_qtd=0
         #walls_qtd = df_walls.at[label_index, list_aps[i]]
@@ -282,15 +309,15 @@ def fitness_function(particle_position, row):
     
     error = error
     #print(particle_position, error, '\n')
-    return round(error,2)
+    return round(error,5)
 
 ################################# ARQUIVOS #############################
 df = pd.read_csv('db_yuri_training5_semsala42_1-todos-aps-maxValue.csv')
 #df = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/db_yuri_training5_semsala42_1-todos-aps-maxValue.csv')
 df = df[(df["DEVICE"] == '2055') | (df["DEVICE"] == '121B') | (df["DEVICE"] == '20B5')].reset_index(drop=True)
 
-#df = df.sample(n=1, random_state=1)
-    
+df = df.sample(n=1, random_state=1)
+
 #df_walls = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/walls_values.csv')
 df_walls = pd.read_csv('walls_values.csv')
 
