@@ -45,11 +45,11 @@ TXPOWER = 0
 ################################# PARTICLE SWARM OPTIMAZATION PARAM ##############
 dimension = 2
 fitness_criterion = 10e-8
-population = 50
-generation = 12
-
-#population = 100
+#population = 50
 #generation = 15
+
+population = 50
+generation = 15
 best_particle = {}
 
 ################################# FUNÇOES GLOBAIS ################################
@@ -84,7 +84,7 @@ def generateMap(particles, costs, realPosition, currentRound):
     groups      = {}
     
     for i in range(len(particles)):
-        pos = particles[i]
+        pos = particles[i][0]
         posPixels = toPixels(pos[0], pos[1])
         label     = str(pos[0]) + str(pos[1])
         
@@ -95,15 +95,15 @@ def generateMap(particles, costs, realPosition, currentRound):
             low_position = pos
         
         if label not in groups:
-            groups[label] = [1, posPixels[0], posPixels[1], cost]
+            groups[label] = [i, posPixels[0], posPixels[1], cost]
         else:
-            groups[label][0] += 1
+                groups[label][0] += 1
             
         circ = Circle((posPixels[0] + np.random.normal(0, 5), posPixels[1] + np.random.normal(0, 5)), radius=10, alpha=0.5, color="red", zorder=10)
         plt.gca().add_patch(circ)
     
     for group in groups.values():
-        plt.annotate("Cost: " + str(round(group[3], 1)), xy=(group[1]+5, group[2]-5), size=2.7, va="center", ha="left", xytext=(group[1] + 50, group[2] - 80), zorder=8,
+        plt.annotate("P" + str(group[0]) + ', Cost:' + str(round(group[3], 1)), xy=(group[1]+5, group[2]-5), size=2.7, va="center", ha="left", xytext=(group[1] + 50, group[2] - 80), zorder=8,
               bbox=dict(boxstyle="square", facecolor="#ffffffcc", edgecolor="#aaaaaa88", linewidth=0.4),
               arrowprops=dict(arrowstyle="-", antialiased=True, color="#444444", connectionstyle="arc3,rad=-0.2", linewidth=0.15))
         
@@ -112,7 +112,8 @@ def generateMap(particles, costs, realPosition, currentRound):
     circ = Circle((lowPosPixels[0], lowPosPixels[1]), radius=10, color="#2ca05aff", zorder=12)
     plt.gca().add_patch(circ)
     
-    imgFilename = "sample-" + str(currentRound) + ".png"
+    imgFilename = "testes/sample-" + str(currentRound) + ".png"
+    #plt.title("PL0, N, WALL_LOSS caminhando em difereçao ao melhor da rodada anterior", fontsize = 10)
     plt.savefig(imgFilename, dpi=300, bbox_inches="tight", pad_inches=0)
     
 def update_velocity(particle, velocity, pbest, gbest, w_min=0.5, max=0.5, c=0.5):
@@ -142,36 +143,24 @@ def update_position(particle, velocity):
 
 ##################### PARTICLE SWARM OPTIMAZATION ALGORITHM ######################
 def pso_2d(population, dimension, generation, fitness_criterion, real_position, row):
-    seed = time()
+    #seed = time()
+    seed = 1672159026.9478798
     random.seed(seed)
-    #print('seed:', seed)
+    print('seed:', seed)
     
     # Population
-    particles = [[round(random.uniform(x_under_lim, x_upper_lim),1), round(random.uniform(y_under_lim, y_upper_lim),1)] for i in range(population)]
+    particles = {i: [[round(random.uniform(x_under_lim, x_upper_lim),1), round(random.uniform(y_under_lim, y_upper_lim),1)], 
+                    60, 3.5, 3] for i in range(population)}
     
     # Particle's best position
     pbest_position = particles
     #print('\nParticulas:', pbest_position)
     
-    pbest_fitness = []
-    particles_json = []
-    
-    for p in particles:
-        ff = fitness_function([p[0],p[1]], row, 0)
-        particles_json.append(ff[0])
-        pbest_fitness.append(ff[1])
-    
     # Fitness
-    #pbest_fitness = [fitness_function([p[0],p[1]], row, 0) for p in particles]
-    #print(pbest_fitness)
+    pbest_fitness = [fitness_function(particles[p], row) for p in particles]
     
     # Index of the best particle
     gbest_index = np.argmin(pbest_fitness)
-    #print('melhor particula:', pbest_position[gbest_index])
-    
-    global best_particle
-    best_particle = particles_json[gbest_index]
-    #print(best_particle)
     
     # Global best particle position
     gbest_position = pbest_position[gbest_index]
@@ -187,23 +176,15 @@ def pso_2d(population, dimension, generation, fitness_criterion, real_position, 
         else:
             for n in range(population):
                 # Update the velocity of each particle
-                velocity[n] = update_velocity(particles[n], velocity[n], pbest_position[n], gbest_position)
+                velocity[n] = update_velocity(particles[n][0], velocity[n], pbest_position[n][0], gbest_position[0])
                 
                 # Move the particles to new position
-                particles[n] = update_position(particles[n], velocity[n])
+                particles[n][0] = update_position(particles[n][0], velocity[n])
         
         #print('----------- round', t+1)
 
         # Calculate the fitness value
-        #pbest_fitness = [fitness_function([round(p[0],1),round(p[1],1)], row, 1) for p in particles]
-        
-        pbest_fitness = []
-        particles_json = []
-        
-        for p in particles:
-            ff = fitness_function([p[0],p[1]], row, 1)
-            particles_json.append(ff[0])
-            pbest_fitness.append(ff[1])
+        pbest_fitness = [fitness_function(particles[p], row) for p in particles]
         
         # Find the index of the best particle
         gbest_index = np.argmin(pbest_fitness)
@@ -211,7 +192,6 @@ def pso_2d(population, dimension, generation, fitness_criterion, real_position, 
         # Update the position of the best particle
         gbest_position = pbest_position[gbest_index]
         
-        #print('melhor particula:', pbest_position[gbest_index])
         
         #best_particle = particle_RSSI(pbest_position[gbest_index])
         
@@ -251,25 +231,18 @@ def attenuation():
 
 # Cada particula tem uma posição [x,y] e pegamos essa posição para obter as distâncias pros respectivos waps
 # E através da distância obter o RSSI entre eles. No final será retornado um dicionário com o RSSI para todos os WAPS.
-def particle_RSSI(particle_position, tipo):
+def particle_RSSI(particle_position):
     particle_sample = {}
 
-    label_index = sample_dfwall_low_dist(particle_position)
+    label_index = sample_dfwall_low_dist(particle_position[0])
+    
+    PL0 = particle_position[1]
+    N   = particle_position[2]
+    WALL_LOSS = particle_position[3]-2
 
     for i in range(len(list_aps)):
         wap_position = aps_positions[list_aps[i]]
-        dist = euclidian_distance(wap_position, particle_position)
-        
-        if tipo == 0:
-            N   = round(random.uniform(3.5, 4.5),1)
-            PL0 = round(random.uniform(50, 65),0)
-            WALL_LOSS = round(random.uniform(2, 6),0)
-            #print('tipo0', list_aps[i], PL0, N, WALL_LOSS)
-        else:
-            PL0 = best_particle[list_aps[i]][1]
-            N   = best_particle[list_aps[i]][2]
-            WALL_LOSS = best_particle[list_aps[i]][3]
-            #print('tipo 1', PL0, N, WALL_LOSS)
+        dist = euclidian_distance(wap_position, particle_position[0])
 
         #walls_qtd=0
         walls_qtd = df_walls.at[label_index, list_aps[i]]
@@ -286,28 +259,29 @@ def particle_RSSI(particle_position, tipo):
         
         if RSSI < -95: RSSI = -105
         
-        particle_sample[list_aps[i]] = [RSSI, PL0, N, WALL_LOSS]
-        #particle_sample[list_aps[i]] = RSSI
+        #particle_sample[list_aps[i]] = [RSSI, PL0, N, WALL_LOSS]
+        particle_sample[list_aps[i]] = RSSI
     
     return particle_sample
 
 # RMSD entre os RSSI da particula e do sample
-def fitness_function(particle_position, row, tipo):
-    particula = particle_RSSI(particle_position, tipo)
+def fitness_function(particle_position, row):
+    particula = particle_RSSI(particle_position)
     error = 0
     
     for i in range(len(list_aps)):
         #print(list_aps[i], math.sqrt(math.pow((particula[list_aps[i]][0] - getattr(row, list_aps[i])) , 2)))
-        error += math.sqrt(math.pow((particula[list_aps[i]][0] - getattr(row, list_aps[i])) , 2))
+        error += math.sqrt(math.pow((particula[list_aps[i]] - getattr(row, list_aps[i])) , 2))
     
     error = error
     #print(particle_position, error, '\n')
-    return (particula, round(error,2))
+    return round(error,2)
 
 ################################# ARQUIVOS #############################
 df = pd.read_csv('db_yuri_training5_semsala42_1-todos-aps-maxValue.csv')
 #df = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/db_yuri_training5_semsala42_1-todos-aps-maxValue.csv')
 df = df[(df["DEVICE"] == '2055') | (df["DEVICE"] == '121B') | (df["DEVICE"] == '20B5')].reset_index(drop=True)
+
 df = df.sample(n=1, random_state=1)
     
 #df_walls = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/walls_values.csv')
@@ -328,7 +302,7 @@ def error_by_room(room):
         for row in point_df.itertuples():
             real_position = [row.X, row.Y]
 
-            estimated_position = pso_2d(population, dimension, generation, fitness_criterion, real_position, row)
+            estimated_position = pso_2d(population, dimension, generation, fitness_criterion, real_position, row)[0]
             estimated_error = euclidian_distance(real_position, estimated_position)
 
             error_by_room.append(estimated_error)
