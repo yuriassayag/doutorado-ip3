@@ -145,13 +145,14 @@ def update_position(particle, velocity):
 def pso_2d(population, dimension, generation, fitness_criterion, real_position, row):
     seed = time()
     #seed = 1672159026.9478798
-    random.seed(seed)
     #print('seed:', seed)
+    random.seed(seed)
     
-    # Population
+    # Population (N, PL0, WALL_LOSS random between respective interval)
     particles = {i: [[round(random.uniform(x_under_lim, x_upper_lim),1), round(random.uniform(y_under_lim, y_upper_lim),1)], 
-                    60, 3.5, 3] for i in range(population)}
+                    round(random.uniform(50, 60),0), round(random.uniform(3.5, 5),1), round(random.uniform(1, 5),0)] for i in range(population)}
     
+    #print(particles)
     # Particle's best position
     pbest_position = particles
     #print('\nParticulas:', pbest_position)
@@ -235,13 +236,20 @@ def particle_RSSI(particle_position):
 
     #label_index = sample_dfwall_low_dist(particle_position[0])
     
-    PL0 = particle_position[1]
-    N   = particle_position[2]
-    WALL_LOSS = particle_position[3]-2
+    #PL0 = particle_position[1]
+    #N   = particle_position[2]
+    #WALL_LOSS = particle_position[3]
+
+    N   = round(random.uniform(3.5, 5),1)
+    PL0 = round(random.uniform(50, 60),0)
+    WALL_LOSS = round(random.uniform(1, 5),0)
 
     for i in range(len(list_aps)):
         wap_position = aps_positions[list_aps[i]]
         dist = euclidian_distance(wap_position, particle_position[0])
+
+
+
 
         walls_qtd=0
         #walls_qtd = df_walls.at[label_index, list_aps[i]]
