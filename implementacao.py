@@ -143,10 +143,10 @@ def update_position(particle, velocity):
 
 ##################### PARTICLE SWARM OPTIMAZATION ALGORITHM ######################
 def pso_2d(population, dimension, generation, fitness_criterion, real_position, row):
-    #seed = time()
-    seed = 1672159026.9478798
+    seed = time()
+    #seed = 1672159026.9478798
     random.seed(seed)
-    print('seed:', seed)
+    #print('seed:', seed)
     
     # Population
     particles = {i: [[round(random.uniform(x_under_lim, x_upper_lim),1), round(random.uniform(y_under_lim, y_upper_lim),1)], 
@@ -191,11 +191,10 @@ def pso_2d(population, dimension, generation, fitness_criterion, real_position, 
         
         # Update the position of the best particle
         gbest_position = pbest_position[gbest_index]
-        
-        
+
         #best_particle = particle_RSSI(pbest_position[gbest_index])
         
-        generateMap(particles, pbest_fitness, real_position, t)
+        #generateMap(particles, pbest_fitness, real_position, t)
     
     return gbest_position
 
@@ -234,7 +233,7 @@ def attenuation():
 def particle_RSSI(particle_position):
     particle_sample = {}
 
-    label_index = sample_dfwall_low_dist(particle_position[0])
+    #label_index = sample_dfwall_low_dist(particle_position[0])
     
     PL0 = particle_position[1]
     N   = particle_position[2]
@@ -244,8 +243,8 @@ def particle_RSSI(particle_position):
         wap_position = aps_positions[list_aps[i]]
         dist = euclidian_distance(wap_position, particle_position[0])
 
-        #walls_qtd=0
-        walls_qtd = df_walls.at[label_index, list_aps[i]]
+        walls_qtd=0
+        #walls_qtd = df_walls.at[label_index, list_aps[i]]
 
         if dist < 0.1:
             RSSI = -PL0
@@ -282,7 +281,7 @@ df = pd.read_csv('db_yuri_training5_semsala42_1-todos-aps-maxValue.csv')
 #df = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/db_yuri_training5_semsala42_1-todos-aps-maxValue.csv')
 df = df[(df["DEVICE"] == '2055') | (df["DEVICE"] == '121B') | (df["DEVICE"] == '20B5')].reset_index(drop=True)
 
-df = df.sample(n=1, random_state=1)
+#df = df.sample(n=1, random_state=1)
     
 #df_walls = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/walls_values.csv')
 df_walls = pd.read_csv('walls_values.csv')
