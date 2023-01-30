@@ -2,7 +2,8 @@
 
    TODOS SEM CONSIDERAR AS PAREDES.
    
-    - (i) Usando a abordagem de parametros fixos (N=3.5, PL0=60, WALL_LOSS=3) o erro medio foi de 2.71m
+    - (i) Usando a abordagem de parametros fixos (N=3.5, PL0=60, WALL_LOSS=3) o erro medio foi de 2.71m, com 50 particulas e 15 rodadas.
+      Usando 100 particulas com 15 rodadas o erro vai pra 2.67m.
 
     - (ii) Usando a abordagem de parametros randomicos na primeira rodada (os parametros sao os mesmos para todos os waps) e permancendo com eles ate a rodada final, o erro medio foi de 2.90m.
       PL0 = (50, 60)
@@ -18,5 +19,6 @@
       A particula agora é o dicionario {0: [x,y], {"wap1": [PL0, N, WALL], "wap2": [PL0, N, WALL], ..., "wap-n": [PL0, N, WALL]}}
       Neste caso todos os parametros são atualizados em cada rodada e para cada WAP.
 
-   - (v) Usando parametros randomicos na primeira rodada e fazendo os parametros seguintes caminharem em direção aos parametros da melhor particula da rodada anterior. Error: 2.71m (com 100 particulas e 20 rodadas). 2.82m usando 50 particulas e 15 rodadas.
+   - (v) Usando parametros randomicos na primeira rodada e fazendo os parametros seguintes caminharem em direção aos parametros da melhor particula da rodada anterior. Erro 2.82m com 50 particulas.
+      Error: 2.71m (com 100 particulas e 20 rodadas)
    Se usar paredes vai pra 3.0m

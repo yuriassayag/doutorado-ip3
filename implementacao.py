@@ -177,12 +177,16 @@ def update_position(particle, velocity):
 def pso_2d(population, dimension, generation, fitness_criterion, real_position, row):
     seed = time()
     #seed = 1672159026.9478798
-    print('seed:', seed)
+    #print('seed:', seed)
     random.seed(seed)
     
     # Population (N, PL0, WALL_LOSS random between respective interval)
-    particles = {i: [[round(random.uniform(x_under_lim, x_upper_lim),1), round(random.uniform(y_under_lim, y_upper_lim),1)], 
-                    round(random.uniform(50, 60),0), round(random.uniform(3.5, 5),1), round(random.uniform(1, 5),0)] for i in range(population)}
+    #particles = {i: [[round(random.uniform(x_under_lim, x_upper_lim),1), round(random.uniform(y_under_lim, y_upper_lim),1)],
+     #               round(random.uniform(50, 60),0), round(random.uniform(3.5, 5),1), round(random.uniform(1, 5),0)] for i in range(population)}
+
+    # PARAMETROS FIXOS
+    particles = {i: [[round(random.uniform(x_under_lim, x_upper_lim),1), round(random.uniform(y_under_lim, y_upper_lim),1)],
+                    60, 3.5, 1] for i in range(population)}
     
     #print(particles)
     # Particle's best position
@@ -229,7 +233,7 @@ def pso_2d(population, dimension, generation, fitness_criterion, real_position, 
 
         #best_particle = particle_RSSI(pbest_position[gbest_index])
         
-        generateMap(particles, pbest_fitness, real_position, t)
+        #generateMap(particles, pbest_fitness, real_position, t)
     
     return gbest_position
 
@@ -302,9 +306,12 @@ def particle_RSSI(particle_position):
 def fitness_function(particle_position, row):
     particula = particle_RSSI(particle_position)
     error = 0
-    
+
     for i in range(len(list_aps)):
-        #print(list_aps[i], math.sqrt(math.pow((particula[list_aps[i]][0] - getattr(row, list_aps[i])) , 2)))
+            # ATENCAO AQUI EU ESTOU USANDO O CUSTO APENAS PARA OS DIFERENTES DE -105 NO SAMPLE ORIGINAL
+
+            #print(list_aps[i], math.sqrt(math.pow((particula[list_aps[i]][0] - getattr(row, list_aps[i])) , 2)))
+            #print(list_aps[i], particula[list_aps[i]], getattr(row, list_aps[i]), math.sqrt(math.pow((particula[list_aps[i]] - getattr(row, list_aps[i])) , 2) ))
         error += math.sqrt(math.pow((particula[list_aps[i]] - getattr(row, list_aps[i])) , 2))
     
     error = error
@@ -316,7 +323,7 @@ df = pd.read_csv('db_yuri_training5_semsala42_1-todos-aps-maxValue.csv')
 #df = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/db_yuri_training5_semsala42_1-todos-aps-maxValue.csv')
 df = df[(df["DEVICE"] == '2055') | (df["DEVICE"] == '121B') | (df["DEVICE"] == '20B5')].reset_index(drop=True)
 
-df = df.sample(n=1, random_state=1)
+#df = df.sample(n=1, random_state=1)
 
 #df_walls = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/walls_values.csv')
 df_walls = pd.read_csv('walls_values.csv')
