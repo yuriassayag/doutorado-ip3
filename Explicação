@@ -1,0 +1,74 @@
+Quando chega um sample novo:
+
+Sample = Pandas(Index=2359, 
+WAP11=-105.0, WAP5=-91.0, WAP3=-105.0, 
+WAP1=-105.0, WAP9=-105.0, WAP12=-105.0, 
+WAP8=-93.0, WAP10=-105.0, WAP6=-83.0, 
+WAP7=-83.0, WAP4=-105.0, WAP2=-105.0, 
+WAP14=-105.0, WAP15=-93.0, WAP13=-105.0, 
+LABEL='51_3_1', X=40.8, Y=8.2, DEVICE='2055', OLD_ROOM_ID=51, ROOM_ID=7)
+
+criamos X (10) particulas aleatorias no mapa:
+
+{0: [[32.9, 3.70], 53.0, 4.2], 1: [[8.9, 13.1], 57.0, 3.6], 2: [[27.0, 10.6], 57.0, 3.8], 
+ 3: [[41.0, 10.1], 59.0, 3.6], 4: [[21.4, 7.8], 58.0, 4.1], 5: [[9.60, 6.00], 51.0, 3.7], 
+ 6: [[2.70, 5.10], 55.0, 3.8], 7: [[1.90, 5.9], 59.0, 3.6], 8: [[12.9, 7.80], 58.0, 4.6], 
+ 9: [[18.0, 6.00], 59.0, 4.7]}
+
+cada particula tem 3 campos, onde [0] = posição aleatória no mapa (X,Y)
+                                  [1] = PL0 variando entre -50 e -60
+                                  [2] = N variando entre 3.5 e 5
+
+Primeira rodada:
+	- Para cada particula calculamos a função de custo. 
+	- Um dos requisitos da função de custo é achar os respectivos RSSI's de acordo com a posição
+	de cada particula:
+	Exemplo: a posição da particula 0 é [X=32.9, Y=3.70]. A partir dessa posição precisamos obter o RSSI estimado da particula na posição para cada nó âncora. Para isso, temos uma tabela contendo a posição dos nós âncoras no cenário:
+
+	aps_positions = {'WAP11': [1.5 , 11.4],
+                 'WAP5' : [33.0, 5.0 ],
+                 'WAP3' : [16.5, 3.0 ],
+                 'WAP1' : [4.3 , 5.0 ],
+                 'WAP9' : [28.5, 12.0],
+                 'WAP12': [4.0 , 17.5],
+                 'WAP8' : [33.5, 12.0],
+                 'WAP10': [20.0, 12.3],
+                 'WAP6' : [38.0, 4.3 ],
+                 'WAP7' : [39.0, 11.2],
+                 'WAP4' : [23.0, 3.5 ],
+                 'WAP2' : [8.0 , 6.0 ],
+                 'WAP14': [17.8, 9.0 ],
+                 'WAP15': [32.3, 9.0 ],
+                 'WAP13': [13.5, 10.0]}
+
+    - O cálculo para obter o RSSI de acordo com o log-distance é:
+    	pathLoss = PL0 + 10 * N * math.log10(dist/d0)
+   	- O valor de PL0 é o segundo campo da particula, o valor de N é o terceiro campo e o dist
+   	é a distância euclidiana entre a coordenada da particula e a coordenada do nó âncora.
+   	Exemplo de cálculo para o anchor node 5:
+   		Particula position = [32.9, 3.70]
+   		Anchor Node 5 position = [33.0, 5.0]
+   		dist = sqrt((32.9 - 33)² + (5-3.70)²) = X
+   		PL0  = 53
+   		N    = 4.2
+   		RSSI = 53 + 10 * 4.2 * math.log10(dist/1) = -58
+
+   	- Isso é feito para todos os nós âncoras para formar um sample simulado da seguinte forma:
+	{'WAP11': -105, 'WAP5': -58.0, 'WAP3': -105, 'WAP1': -105, 'WAP9': -94.0, 'WAP12': -105, 'WAP8': -92.0, 'WAP10': -105, 'WAP6': -83.0, 'WAP7': -94.0, 'WAP4': -95.0, 'WAP2': -105, 'WAP14': -105, 'WAP15': -84.0, 'WAP13': -105}
+
+	- Se o valor de RSSI der maior que -90, então substituimos para -105 para representar que a particula está muito distante do nó âncora e o resultado do log-distance pode não ser confiável.
+
+	- Com os valores de RSSI encontrados através do log-distance usando as informações da particula, podemos então calcular a função de custo:
+
+	- A função de custo é feita utilizando o RMSE entre o RSSI encontrado e o RSSI real recebido no sample.
+	Exemplo: Se consideramos o RSSI real recebido do WAP5=-91.0. O RSSI encontrado pelo log-distance foi -55, então a diferença foid e 36 dBm. Isso significa uma enorme diferença. Fazemos esse cálculo para todos os nós âncoras. Dessa forma, se os parâmetros aleatórios escolhidos de PL0 e N para encontrar o RSSI da particula forem ruins, então a estimativa de RSSI vai ser ruim e resultará em um alto custo na função de custo. Se o custo for baixo, significa que os parâmetros utilizados são próximos dos parâmetros reais que causaram o RSSI do sample.
+
+	- Dessa forma, cada particula terá um custo associado a ela, de acordo com os parâmetros utilizados. Após fazer isso para cada uma das P particulas, teremos um custo associado a cada uma delas. Então, escolhemos a particula com menor custo para representar a melhor particula da rodada. Isso significa que a particula escolhida possui uma coordenada cujo os parâmetros PL0 e N selecionados para estimar os RSSI para os nós âncoras, são os melhores da atual rodada.
+
+	- Agora, na próxima rodada as posições de todas as particulas são atualizadas em direção a posição da melhor particula da rodada anterior. Consideramos também que os parâmetros da melhor particula são os melhores parâmetros atuais. Dessa forma, também atualizamos os parâmetros PL0 e N de todas as particulas para caminharem em direção aos valores da melhor particula. Considerando por exemplo que a melhor particula escolhida foi: 
+	9: [[18.0, 6.00], 59.0, 4.7]
+	Então todas as particulas caminharão em direção da posição [18.0, 6.0] e ao PL0 -59 e ao N 4.7.
+
+	Então se na rodada anterior a particula 7 tinha os valores [[1.90, 5.9], 59.0, 3.6], na próxima rodada terá os valores [X,X,X].
+
+	Com todos os parâmetros de todas as particulas atualizadas em direção a melhor particula da rodada anterior, o calculo de função de custo é refeito para obter a melhor particula da rodada atual. Dependendo dos valores obtidos, a melhor particula pode mudar no decorrer das rodadas, pois pode haver uma nova posição que com as combinações de parâmetros escolhidos resulte na melhor particula global. No final das X rodadas, todas as particulas tendem a caminhar para a mesma direção, com a posição que mais se aproxima da posição real e com os melhores valores de parâmetros para o PL0 e N.

@@ -3,13 +3,15 @@ import random
 import json
 import numpy as np
 import pandas as pd
-import multiprocessing
+from tqdm import tqdm
 import matplotlib.patheffects as PathEffects
 from matplotlib         import pyplot as plt
 from matplotlib.patches import Circle
+
 from time import sleep, time
 from multiprocessing.pool import ThreadPool, Pool
-from tqdm import tqdm
+import multiprocessing
+
 #from pyswarm            import pso
 #%matplotlib inline
 
@@ -43,12 +45,12 @@ STD_DEV = 1
 TXPOWER = 0
 
 ################################# PARTICLE SWARM OPTIMAZATION PARAM ##############
-dimension = 5
+dimension = 4
 fitness_criterion = 10e-8
 #population = 50
 #generation = 15
 
-population = 100
+population = 10
 generation = 15
 best_particle = {}
 
@@ -89,7 +91,6 @@ def generateMap(particles, costs, realPosition, currentRound):
         label     = str(pos[0]) + str(pos[1])
         p_pl0 = particles[i][1]
         p_n   = particles[i][2]
-        p_wall= particles[i][3]
 
         cost = costs[i]
         
@@ -119,11 +120,9 @@ def generateMap(particles, costs, realPosition, currentRound):
     #plt.title("PL0, N, WALL_LOSS caminhando em difereçao ao melhor da rodada anterior", fontsize = 10)
     plt.savefig(imgFilename, dpi=300, bbox_inches="tight", pad_inches=0)
     
-def update_velocity(particle, velocity, pbest, gbest, w_min=0.5, w_max=0.5, c=0.5):
+def update_velocity(particle, velocity, pbest, gbest):
     # Initialise new velocity array
     num_pos = len(particle[0])
-    num_params = len(particle)
-
     new_velocity = np.array([0.0 for i in range(len(particle)+1)])
 
     # Randomly generate r1, r2 and inertia weight from normal distribution
@@ -133,17 +132,13 @@ def update_velocity(particle, velocity, pbest, gbest, w_min=0.5, w_max=0.5, c=0.
     c1 = c
     c2 = c
 
-    # Calculate new velocity
     for i in range(num_pos):
         new_velocity[i] = (w*velocity[i] + c1*r1*(pbest[0][i]-particle[0][i])+c2*r2*(gbest[0][i]-particle[0][i]))
 
-    # Calculate new velocity
-    #for i in range(1, num_params):
-    #    new_velocity[i] = (w*velocity[i+1] + c1*r1*(pbest[i]-particle[i])+c2*r2*(gbest[i]-particle[i]))
     if particle[1] < gbest[1]:
-        new_velocity[2] = 2
+        new_velocity[2] = 3
     elif particle[1] > gbest[1]:
-        new_velocity[2] = -2
+        new_velocity[2] = -3
     else:
         new_velocity[2] = 0
 
@@ -153,21 +148,16 @@ def update_velocity(particle, velocity, pbest, gbest, w_min=0.5, w_max=0.5, c=0.
         new_velocity[3] = -0.3
     else:
         new_velocity[3] = 0
-    #print(new_velocity)
 
-    if particle[3] < gbest[3]:
-        new_velocity[4] = 1
-    elif particle[3] > gbest[3]:
-        new_velocity[4] = -1
-    else:
-        new_velocity[4] = 0
+    #for i in range(1,len(particle)):
+    #   new_velocity[i+1] = (0.3*velocity[i+1] + 0.5*r1*(pbest[i]-particle[i]) + 0.5*r2*(gbest[i]-particle[i]))
 
     return new_velocity
 
 def update_position(particle, velocity):
     # Move particles by adding velocity
     new_particle = [  [particle[0][0] + velocity[0], particle[0][1] + velocity[1]  ],
-                       particle[1] + velocity[2], particle[2] + velocity[3], particle[3] + velocity[4]]
+                       particle[1] + velocity[2], particle[2] + velocity[3]]
     #new_particle = particle + velocity
     #print('p', particle, 'v' ,velocity, 'new', new_particle, '\n')
     
@@ -176,43 +166,54 @@ def update_position(particle, velocity):
 ##################### PARTICLE SWARM OPTIMAZATION ALGORITHM ######################
 def pso_2d(population, dimension, generation, fitness_criterion, real_position, row):
     seed = time()
-    #seed = 1672159026.9478798
-    #print('seed:', seed)
+    seed = 1677302347.6845572
+    print('seed:', seed)
     random.seed(seed)
     
     # Population (N, PL0, WALL_LOSS random between respective interval)
-    #particles = {i: [[round(random.uniform(x_under_lim, x_upper_lim),1), round(random.uniform(y_under_lim, y_upper_lim),1)],
-     #               round(random.uniform(50, 60),0), round(random.uniform(3.5, 5),1), round(random.uniform(1, 5),0)] for i in range(population)}
+    particles = {i: [[round(random.uniform(x_under_lim, x_upper_lim),1), round(random.uniform(y_under_lim, y_upper_lim),1)],
+                     round(random.uniform(50, 60),0), round(random.uniform(3.5, 5),1)] for i in range(population)}
+
+    # UTILIZAR 50,60 e 3.5 a 5
 
     # PARAMETROS FIXOS
-    particles = {i: [[round(random.uniform(x_under_lim, x_upper_lim),1), round(random.uniform(y_under_lim, y_upper_lim),1)],
-                    60, 3.5, 1] for i in range(population)}
+    #particles = {i: [[round(random.uniform(x_under_lim, x_upper_lim),1), round(random.uniform(y_under_lim, y_upper_lim),1)],
+    #                60, 3.5] for i in range(population)}
     
     #print(particles)
     # Particle's best position
     pbest_position = particles
-    
+
     # Fitness
     pbest_fitness = [fitness_function(particles[p], row) for p in particles]
-    
+
     # Index of the best particle
     gbest_index = np.argmin(pbest_fitness)
     
     # Global best particle position
     gbest_position = pbest_position[gbest_index]
+
+    #pl0_global = gbest_position[1]
+    #n_global   = gbest_position[2]
     
     # Velocity (starting from 0 speed)
     velocity = [[0.0 for j in range(dimension)] for i in range(population)]
 
+    #generateMap(particles, pbest_fitness, real_position, 0)
+
     # Loop for the number of generation
     for t in range(generation):
-        #print('------------------ round',t)
+        #print(t,'------------------ round',t)
         # Stop if the average fitness value reached a predefined success criterion
         if np.average(pbest_fitness) <= fitness_criterion:
             break
+
         else:
             for n in range(population):
                 # Update the velocity of each particle
+
+                #particles[n][1] = pl0_global
+                #particles[n][2] = n_global
 
                 #print('P=', particles[n], '| V=', velocity[n], '| PB=', pbest_position[n], '| GB=',gbest_position)
                 velocity[n] = update_velocity(particles[n], velocity[n], pbest_position[n], gbest_position)
@@ -233,28 +234,12 @@ def pso_2d(population, dimension, generation, fitness_criterion, real_position, 
 
         #best_particle = particle_RSSI(pbest_position[gbest_index])
         
-        #generateMap(particles, pbest_fitness, real_position, t)
+        #generateMap(particles, pbest_fitness, real_position, t+1)
     
     return gbest_position
 
 
 ####################### FUNÇOES PARA CADA SAMPLE DA DATABASE ###################
-
-# Busca qual o label do json de labels que e mais proximo da particula atual para contar a quantidade de paredes.
-# Recebe a particula como parametro e retorna o index da label mais proxima no dataframe.
-def sample_dfwall_low_dist(particle_position):
-    low = 100000
-    index = 10000
-
-    for k, v in points_walls.items():
-        point_sample = [v[1], v[2]]
-        dist = euclidian_distance(point_sample, particle_position)
-
-        if dist < low:
-            low = dist
-            index = v[0]
-
-    return index
 
 # Atenuacao do RSSI como uma variavel normal.
 def attenuation():
@@ -271,26 +256,18 @@ def attenuation():
 # E através da distância obter o RSSI entre eles. No final será retornado um dicionário com o RSSI para todos os WAPS.
 def particle_RSSI(particle_position):
     particle_sample = {}
-
-    #label_index = sample_dfwall_low_dist(particle_position[0])
     
     PL0 = particle_position[1]
     N   = particle_position[2]
-    WALL_LOSS = particle_position[3]
 
     for i in range(len(list_aps)):
         wap_position = aps_positions[list_aps[i]]
         dist = euclidian_distance(wap_position, particle_position[0])
 
-        walls_qtd=0
-        #walls_qtd = df_walls.at[label_index, list_aps[i]]
-
         if dist < 0.1:
             RSSI = -PL0
         else:
-            distLoss = PL0 + 10 * N * math.log10(dist/d0)
-            wallLoss = walls_qtd * WALL_LOSS
-            pathLoss = distLoss + wallLoss
+            pathLoss = PL0 + 10 * N * math.log10(dist/d0)
             
             #RSSI = round((TXPOWER - ( pathLoss)) + attenuation() ,0)
             RSSI = round((TXPOWER - ( pathLoss)),0)
@@ -305,6 +282,8 @@ def particle_RSSI(particle_position):
 # RMSD entre os RSSI da particula e do sample
 def fitness_function(particle_position, row):
     particula = particle_RSSI(particle_position)
+    print(particula)
+    #print(particula)
     error = 0
 
     for i in range(len(list_aps)):
@@ -312,9 +291,14 @@ def fitness_function(particle_position, row):
 
             #print(list_aps[i], math.sqrt(math.pow((particula[list_aps[i]][0] - getattr(row, list_aps[i])) , 2)))
             #print(list_aps[i], particula[list_aps[i]], getattr(row, list_aps[i]), math.sqrt(math.pow((particula[list_aps[i]] - getattr(row, list_aps[i])) , 2) ))
-        error += math.sqrt(math.pow((particula[list_aps[i]] - getattr(row, list_aps[i])) , 2))
+        
+        erro_atual = math.sqrt(math.pow((particula[list_aps[i]] - getattr(row, list_aps[i])) , 2))
+ 
+        #print(list_aps[i], particula[list_aps[i]], getattr(row, list_aps[i]), "=", erro_atual)
+            
+        error += erro_atual
     
-    error = error
+    #print("total", error, "\n")
     #print(particle_position, error, '\n')
     return round(error,5)
 
@@ -323,13 +307,11 @@ df = pd.read_csv('db_yuri_training5_semsala42_1-todos-aps-maxValue.csv')
 #df = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/db_yuri_training5_semsala42_1-todos-aps-maxValue.csv')
 df = df[(df["DEVICE"] == '2055') | (df["DEVICE"] == '121B') | (df["DEVICE"] == '20B5')].reset_index(drop=True)
 
-#df = df.sample(n=1, random_state=1)
+df = df[df["ROOM_ID"] == 7]
 
-#df_walls = pd.read_csv('/content/drive/MyDrive/UFAM/Doutorado/Doutorado-Artigo3/walls_values.csv')
-df_walls = pd.read_csv('walls_values.csv')
 
-with open('walls.json', 'r') as json_file:
-    points_walls = json.load(json_file)
+df = df.sample(n=1, random_state=5)
+
 #########################################################################
 
 def error_by_room(room):
@@ -342,33 +324,73 @@ def error_by_room(room):
 
         for row in point_df.itertuples():
             real_position = [row.X, row.Y]
+            
+            #posX = []
+            #posY = []
 
+            #for i in range(5):
+            print(row)
             estimated_position = pso_2d(population, dimension, generation, fitness_criterion, real_position, row)[0]
-            estimated_error = euclidian_distance(real_position, estimated_position)
+            #posX.append(round(estimated_position[0],1))
+            #posY.append(round(estimated_position[1],1))
 
-            error_by_room.append(estimated_error)
+            #print('est',posX, posY)
+
+            #estimated_position = [np.mean(posX), np.mean(posY)]
+            #print('real',real_position, 'est', estimated_position)
+
+            if(estimated_position[0] >= 0 and estimated_position[1] >= 0):
+                estimated_error = euclidian_distance(real_position, estimated_position)
+                error_by_room.append(estimated_error)
+
+            #if estimated_position[0] < 0 or estimated_position[1] < 0:
+
+               # print('epa, posicao menor que 0. Nova posicao:', estimated_position)
+
+               # if estimated_position[0] < 0 or estimated_position[1] < 0:
 
     return_error = np.mean(error_by_room)
-    print('Sala:', room, 'Error:', round(return_error,3), 'm')
-    return return_error
+    print('Sala:', room, 'Error:', round(np.mean(return_error),2), 'm')
+    return [return_error, error_by_room]
 
 list_rooms = list(df['ROOM_ID'].unique())
 
-inicio_processo = time()
+#l_wmin = [0.1, 0.2, 0.3, 0.4, 0.5,0.6, 0.7, 0.8, 0.9]
+#l_wmax = [0.1, 0.2, 0.3, 0.4, 0.5,0.6, 0.7, 0.8, 0.9]
+#l_c    = [0.1, 0.2, 0.3, 0.4, 0.5,0.6, 0.7, 0.8, 0.9]
 
-subprocessos = []
-pool = Pool(15)
+l_wmin = [0.5]
+l_wmax = [0.5]
+l_c    = [0.5]
 
-for room in tqdm(list_rooms):
-#for room in list_rooms:
-    #resultado_paralelo = error_by_room(room)
-    resultado_paralelo = pool.apply_async(error_by_room, (room, ))
-    subprocessos.append(resultado_paralelo)
+for w_min in l_wmin:
+    for w_max in l_wmax:
+        for c in l_c:
 
-lista_api_paralela = [result.get(timeout=300) for result in tqdm(subprocessos)]
-print('\n\nMEDIA:', np.mean(lista_api_paralela))
-#print('\n\nMEDIA:', np.mean(subprocessos))
+            inicio_processo = time()
 
-fim_processo = time()
-processamento_paralelo = fim_processo - inicio_processo
-print('Processamento paralelo:', round( (processamento_paralelo), 1 ), 'segundos')
+            subprocessos = []
+            pool = Pool(12)
+
+            for room in tqdm(list_rooms):
+            #for room in list_rooms:
+                #resultado_paralelo = error_by_room(room)
+                resultado_paralelo = pool.apply_async(error_by_room, (room, ))
+                subprocessos.append(resultado_paralelo)
+
+            lista_api_paralela = [result.get(timeout=3000) for result in tqdm(subprocessos)]
+
+            error_sala = []
+            error_global = []
+
+            for i in lista_api_paralela:
+                error_sala.append(i[0])
+                error_global += i[1]
+
+            print(w_min, w_max, c, " / Media Salas", round(np.mean(error_sala),2), ", Media Global:", round(np.mean(error_global),2))
+            #print('\n\nMEDIA SALAS:', np.mean(error_sala))
+            #print('MEDIA GLOBAL:', np.mean(error_global))
+
+            fim_processo = time()
+            processamento_paralelo = fim_processo - inicio_processo
+            #print('Processamento paralelo:', round( (processamento_paralelo), 1 ), 'segundos')
